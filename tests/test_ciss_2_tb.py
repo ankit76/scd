@@ -5,12 +5,12 @@ os.environ["JAX_PLATFORM_NAME"] = "cpu"
 import numpy as np
 from jax import numpy as jnp
 
-from scd import ciss_tb, system
+from scd import ciss_2_tb, system
 
 seed = 92421
 np.random.seed(seed)
-sys = system.system(n_unit_sites=7, n_units=5)
-ham = ciss_tb.ciss_tb()
+sys = system.system(n_unit_sites=7, n_units=5, n_orb=2)
+ham = ciss_2_tb.ciss_2_tb()
 nuc_pos = jnp.array(np.random.randn(sys.n_sites))
 ci = jnp.array(np.random.rand(sys.n_states) + 1.0j * np.random.rand(sys.n_states))
 ci /= jnp.sqrt(jnp.sum(ci.conjugate() * ci))
