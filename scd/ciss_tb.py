@@ -20,6 +20,7 @@ class ciss_tb(hamiltonian.ham_base):
     omega: float = 0.05 / 27.211385
     c: float = (2 * 0.1 * omega**3) ** 0.5
     tc: float = 0.02 / 27.211385
+    tc_1: float = 0.0 / 27.211385
     lambda_soc: float = -1.0 * tc
 
     @partial(jit, static_argnums=(0, 1))
@@ -27,6 +28,7 @@ class ciss_tb(hamiltonian.ham_base):
         h = jnp.zeros((sys.n_states, sys.n_states)) + 0.0j
         t_vec = jnp.zeros(sys.n_sites)
         t_vec = t_vec.at[1].set(-self.tc)
+        t_vec = t_vec.at[sys.n_unit_sites].set(-self.tc_1)
         hopping = jsp.linalg.toeplitz(t_vec)
         eph = self.c * nuc_pos * jnp.eye(sys.n_sites)
         h = h.at[: sys.n_sites, : sys.n_sites].set(hopping + eph)
@@ -102,6 +104,24 @@ class ciss_tb(hamiltonian.ham_base):
             carry = carry.at[x_d].add(-self.tc * ci[x_d + 1])
             carry = carry.at[x_u + 1].add(-self.tc * ci[x_u])
             carry = carry.at[x_d + 1].add(-self.tc * ci[x_d])
+            # long range hopping
+            # using jax behavior of not raising out of bound errors
+            carry = carry.at[x_u].add(
+                -self.tc_1
+                * ci[x_u + sys.n_unit_sites]
+                * (x < sys.n_sites - sys.n_unit_sites)
+            )
+            carry = carry.at[x_d].add(
+                -self.tc_1
+                * ci[x_d + sys.n_unit_sites]
+                * (x < sys.n_sites - sys.n_unit_sites)
+            )
+            carry = carry.at[x_u + sys.n_unit_sites].add(
+                -self.tc_1 * ci[x_u] * (x < sys.n_sites - sys.n_unit_sites)
+            )
+            carry = carry.at[x_d + sys.n_unit_sites].add(
+                -self.tc_1 * ci[x_d] * (x < sys.n_sites - sys.n_unit_sites)
+            )
             # soc
             # uu
             carry = carry.at[x_u].add(
@@ -186,7 +206,7 @@ if __name__ == "__main__":
     from scd import system
 
     np.set_printoptions(precision=6, suppress=True)
-    ham = ciss_tb()
+    ham = ciss_tb(tc_1=0.001)
     sys = system.system()
     np.random.seed(0)
     nuc_pos, _ = sys.init_nuc(ham.omega)

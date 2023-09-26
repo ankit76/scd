@@ -10,7 +10,7 @@ from scd import ciss_tb, system
 seed = 92421
 np.random.seed(seed)
 sys = system.system(n_unit_sites=7, n_units=5)
-ham = ciss_tb.ciss_tb()
+ham = ciss_tb.ciss_tb(tc_1=0.001)
 nuc_pos = jnp.array(np.random.randn(sys.n_sites))
 ci = jnp.array(np.random.rand(sys.n_states) + 1.0j * np.random.rand(sys.n_states))
 ci /= jnp.sqrt(jnp.sum(ci.conjugate() * ci))
