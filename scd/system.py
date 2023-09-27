@@ -23,9 +23,11 @@ class system:
     beta: float = 1 / 0.00095
 
     def __post_init__(self):
-        self.n_sites = self.n_unit_sites * self.n_units
+        if self.n_sites is None:
+            self.n_sites = self.n_unit_sites * self.n_units
         self.n_states = 2 * self.n_sites * self.n_orb
-        self.dphi = self.p * 2 * np.pi / self.n_unit_sites
+        if self.dphi is None:
+            self.dphi = self.p * 2 * np.pi / self.n_unit_sites
 
     def init_nuc(self, omega: float) -> Sequence[Any]:
         """Initialize the nuclear positions and momenta

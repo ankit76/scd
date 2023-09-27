@@ -55,7 +55,7 @@ def driver(
     else:
         dat["ci"] = jnp.zeros((sys.n_states)) + 0.0j
         dat["ci"] = dat["ci"].at[0].set(1.0)
-    populations = np.zeros((prop.n_blocks + 1, sys.n_states))
+    populations = np.zeros((prop.n_blocks + 1, init_elec_state.size))
     wall_time = 0.0
 
     for i in range(n_trajectories):
@@ -68,7 +68,7 @@ def driver(
             if i % (max(n_trajectories // 10, 1)) == 0:
                 print(f"Trajectory {i} done in {wall_time:.2f} seconds")
 
-    global_populations = np.zeros((prop.n_blocks + 1, sys.n_states))
+    global_populations = np.zeros((prop.n_blocks + 1, init_elec_state.size))
     comm.Reduce(
         [populations, MPI.DOUBLE], [global_populations, MPI.DOUBLE], op=MPI.SUM, root=0
     )
