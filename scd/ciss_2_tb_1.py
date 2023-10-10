@@ -20,11 +20,11 @@ class ciss_2_tb_1(hamiltonian.ham_base):
     """Two types of orbitals on each site indexed n and b, with sites ordered as n_u, b_u, n_d, b_d"""
 
     omega: float = 0.05 / 27.211385
+    omega_p: float = 0.005 / 27.211385
     c: float = (2 * 0.1 * omega**3) ** 0.5
     tc: float = 0.02 / 27.211385
     lambda_soc: float = -1.0 * tc
     v: float = 1.0 * tc
-    lead_sites: int = 201
 
     @partial(jit, static_argnums=(0, 1))
     def ham_mat(self, sys: system.system, nuc_pos: jnp.ndarray) -> jnp.ndarray:
@@ -36,7 +36,7 @@ class ciss_2_tb_1(hamiltonian.ham_base):
         t_vec = jnp.zeros(sys.n_sites)
         t_vec = t_vec.at[1].set(-self.tc)
         hopping = jsp.linalg.toeplitz(t_vec)
-        eph = self.c * nuc_pos * jnp.eye(sys.n_sites)
+        eph = self.c * nuc_pos[: sys.n_sites] * jnp.eye(sys.n_sites)
         h = h.at[: sys.n_sites, : sys.n_sites].set(hopping + eph)
         h = h.at[sys.n_sites : 2 * sys.n_sites, sys.n_sites : 2 * sys.n_sites].set(
             hopping + eph
@@ -48,6 +48,8 @@ class ciss_2_tb_1(hamiltonian.ham_base):
         kappa = jnp.cos(sys.theta)
         tau = jnp.sin(sys.theta)
 
+        # peierls_pos = nuc_pos[sys.n_sites :]
+
         # carry = h
         # x: site index
         def scanned_fun(carry, x):
@@ -55,6 +57,18 @@ class ciss_2_tb_1(hamiltonian.ham_base):
             n_d = x + sys.n_sites
             b_u = x + 2 * sys.n_sites
             b_d = x + 3 * sys.n_sites
+
+            ## peierls hopping
+            # not_edge = x < sys.n_sites - 1
+            # carry = carry.at[n_u, n_u + 1].add(self.omega_p * peierls_pos[x] * not_edge)
+            # carry = carry.at[n_u + 1, n_u].add(self.omega_p * peierls_pos[x] * not_edge)
+            # carry = carry.at[n_d, n_d + 1].add(self.omega_p * peierls_pos[x] * not_edge)
+            # carry = carry.at[n_d + 1, n_d].add(self.omega_p * peierls_pos[x] * not_edge)
+            # carry = carry.at[b_u, b_u + 1].add(self.omega_p * peierls_pos[x] * not_edge)
+            # carry = carry.at[b_u + 1, b_u].add(self.omega_p * peierls_pos[x] * not_edge)
+            # carry = carry.at[b_d, b_d + 1].add(self.omega_p * peierls_pos[x] * not_edge)
+            # carry = carry.at[b_d + 1, b_d].add(self.omega_p * peierls_pos[x] * not_edge)
+
             # uu
             carry = carry.at[n_u, b_u].add(1.0j * self.lambda_soc * tau)
             carry = carry.at[b_u, n_u].add(-1.0j * self.lambda_soc * tau)
@@ -79,7 +93,7 @@ class ciss_2_tb_1(hamiltonian.ham_base):
 
         h_sys, _ = lax.scan(scanned_fun, h, jnp.arange(sys.n_sites))
 
-        lead_sites = self.lead_sites
+        lead_sites = sys.n_lead_sites
         h_lead = jnp.zeros((4 * lead_sites, 4 * lead_sites)) + 0.0j
         t_vec = jnp.zeros(lead_sites)
         t_vec = t_vec.at[1].set(-self.tc)
@@ -157,7 +171,7 @@ class ciss_2_tb_1(hamiltonian.ham_base):
         self, sys: system.system, ci: jnp.ndarray, nuc_pos: jnp.ndarray
     ) -> jnp.ndarray:
         assert sys.n_orb == 2
-        lead_sites = self.lead_sites
+        lead_sites = sys.n_lead_sites
         eph = jnp.concatenate(
             (self.c * nuc_pos, self.c * nuc_pos, self.c * nuc_pos, self.c * nuc_pos)
         )
@@ -317,7 +331,7 @@ class ciss_2_tb_1(hamiltonian.ham_base):
         assert sys.n_orb == 2
         f_class = -self.omega**2 * nuc_pos
         prob = (ci * ci.conjugate()).real
-        prob = prob[4 * self.lead_sites : 4 * self.lead_sites + sys.n_states]
+        prob = prob[4 * sys.n_lead_sites : 4 * sys.n_lead_sites + sys.n_states]
         f_elec = (
             -self.c
             * (
@@ -351,7 +365,7 @@ if __name__ == "__main__":
     h = ham.ham_mat(sys, nuc_pos)
     print(h.shape)
     print(np.allclose(h, h.T.conj()))
-    lead_sites = ham.lead_sites
+    lead_sites = sys.n_lead_sites
     ci = jnp.array(
         np.random.rand(sys.n_states + 8 * lead_sites)
         + 1.0j * np.random.rand(sys.n_states + 8 * lead_sites)
