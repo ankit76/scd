@@ -5,7 +5,7 @@ import numpy as np
 os.environ["JAX_PLATFORM_NAME"] = "cpu"
 # os.environ["JAX_ENABLE_X64"] = "True"
 from dataclasses import dataclass
-from typing import Any, Sequence
+from typing import Any, Sequence, Union
 
 from jax import numpy as jnp
 
@@ -27,11 +27,13 @@ class system:
     def __post_init__(self):
         if self.n_sites is None:
             self.n_sites = self.n_unit_sites * self.n_units
-        self.n_states = 2 * self.n_sites * self.n_orb
+        if self.n_states is None:
+            self.n_states = 2 * self.n_sites * self.n_orb
         if self.dphi is None:
             self.dphi = self.p * 2 * np.pi / self.n_unit_sites
 
-    def init_nuc(self, omega: float) -> Sequence[Any]:
+    # TODO: define separate function for et model
+    def init_nuc(self, omega: Union[float, jnp.ndarray]) -> Sequence[Any]:
         """Initialize the nuclear positions and momenta
 
         Args:
@@ -41,15 +43,24 @@ class system:
             R: nuclear positions
             P: nuclear momenta
         """
+        if isinstance(omega, tuple):
+            omega = jnp.array(omega)
         sigP = np.sqrt(omega / (2 * np.tanh(0.5 * self.beta * omega)))
         sigR = sigP / omega
         n_dof = self.n_sites + 2 * self.n_lead_phonon_sites
+        # if omega is an array
+        if isinstance(omega, jnp.ndarray):
+            n_dof = omega.size
 
         r = np.zeros((n_dof))
         p = np.zeros((n_dof))
         for d in range(n_dof):
-            r[d] = np.random.normal() * sigR
-            p[d] = np.random.normal() * sigP
+            if isinstance(omega, jnp.ndarray):
+                r[d] = np.random.normal() * sigR[d]
+                p[d] = np.random.normal() * sigP[d]
+            else:
+                r[d] = np.random.normal() * sigR
+                p[d] = np.random.normal() * sigP
         return jnp.array(r), jnp.array(p)
 
     def __hash__(self):
