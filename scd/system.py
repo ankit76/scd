@@ -10,6 +10,44 @@ from typing import Any, Sequence, Union
 from jax import numpy as jnp
 
 
+def debye_bath(
+    n_points: int,
+    gamma: float = 4.75e-05,  # ~ 1 mev
+    lam: float = 0.003675,
+    omega_max: float = 0.1 / 27.2114,  # ~ 100 mev
+) -> (tuple, tuple):
+    """Generates a Debye bath spectral density
+
+    J(omega) = 2 * lam * gamma * omega / (omega^2 + gamma^2)
+
+    discretized as
+
+    J(omega) = (pi / 2) \sum_{j=1}^{n_points} (c_j^2 / omega_j) \delta(omega - omega_j)
+
+    Args:
+        n_points: number of bath modes
+        gamma: characteristic frequency
+        lam: coupling strength
+        omega_max: maximum frequency
+
+    Returns:
+        omega_j: frequencies of the bath modes
+        c_j: coupling strengths of the bath modes
+    """
+    omega = np.linspace(0.00000001, omega_max, n_points * 1000)
+    F = lambda x: (2 * lam / np.pi) * np.arctan(x / gamma)
+    F_omega = F(omega)
+    lam_s = F_omega[-1]
+
+    omega_j = np.zeros((n_points))
+    c_j = np.zeros((n_points))
+    for i in range(n_points):
+        j = i + 1
+        omega_j[i] = omega[np.argmin(np.abs(F_omega - ((j - 0.5) / n_points) * lam_s))]
+        c_j[i] = omega_j[i] * (2 * lam_s / n_points) ** 0.5
+    return tuple(omega_j), tuple(c_j)
+
+
 @dataclass
 class system:
     n_unit_sites: int = 31
