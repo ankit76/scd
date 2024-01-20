@@ -15,7 +15,7 @@ from scd import hamiltonian, system
 
 @dataclass
 class propagator:
-    prop_time: float = 1.0  # ps
+    prop_time: float = 41342.0  # ps
     dt_nuc: float = 50.0
     dt_e_steps_half: int = 50
     dt_e: float = None  # dt_nuc / dt_e_steps_half
@@ -24,9 +24,7 @@ class propagator:
 
     def __post_init__(self):
         self.dt_e = self.dt_nuc / self.dt_e_steps_half
-        self.n_blocks = int(
-            self.prop_time * 41342 / (self.dt_nuc * self.n_block_steps)
-        )  # ps to au
+        self.n_blocks = int(self.prop_time / (self.dt_nuc * self.n_block_steps))
 
     @partial(jit, static_argnums=(0, 1, 2))
     def propagate_elec(
